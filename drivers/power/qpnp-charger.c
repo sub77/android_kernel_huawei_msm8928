@@ -763,10 +763,10 @@ qpnp_chg_is_ibat_loop_active(struct qpnp_chg_chip *chip)
 	return !!(buck_sts & IBAT_LOOP_IRQ);
 }
 
-#define USB_VALID_MASK 0xC0
+#define USB_VALID_MASK		0xC0
 #define USB_VALID_IN_MASK	BIT(7)
-#define USB_COARSE_DET 0x10
-#define USB_VALID_OVP_VALUE    0x40
+#define USB_COARSE_DET		0x10
+#define USB_VALID_OVP_VALUE	0x40
 static int
 qpnp_chg_check_usb_coarse_det(struct qpnp_chg_chip *chip)
 {
@@ -1705,6 +1705,7 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 			pr_info("force_ps_but_not_chg is changed to false\n");
 		}
 #endif
+		chip->aicl_settled = false;
 		chip->usb_present = usb_present;
 		if (!usb_present) {
 			/* when a valid charger inserted, and increase the
@@ -1742,7 +1743,6 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 			qpnp_chg_usb_suspend_enable(chip, 0);
 			qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
 			chip->prev_usb_max_ma = -EINVAL;
-			chip->aicl_settled = false;
 		} else {
 #ifdef CONFIG_HUAWEI_KERNEL
 			wake_lock(&chip->chg_wake_lock);
@@ -3324,7 +3324,12 @@ qpnp_chg_input_current_settled(struct qpnp_chg_chip *chip)
 {
 	int rc, ibat_max_ma;
 	u8 reg, chgr_sts, ibat_trim, i;
+	bool usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
 
+	if (!usb_present) {
+		pr_debug("Ignoring AICL settled, since USB is removed\n");
+		return 0;
+	}
 	chip->aicl_settled = true;
 
 	/*

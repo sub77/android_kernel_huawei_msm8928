@@ -86,6 +86,8 @@ static void check_dsi_ctrl_status(struct work_struct *work)
 		return;
 	}
 	ctl = mfd_to_ctl(pdsi_status->mfd);
+
+	mutex_lock(&ctrl_pdata->mutex);
 	if (!ctl) {
 		pr_err("%s: mdss_mdp_ctl not available\n", __func__);
 		return;
@@ -109,6 +111,8 @@ static void check_dsi_ctrl_status(struct work_struct *work)
 #else
 	mdp5_data = mfd_to_mdp5_data(pdsi_status->mfd);
 	ctl = mfd_to_ctl(pdsi_status->mfd);
+
+	mutex_lock(&ctrl_pdata->mutex);
 #endif
 	if (ctl->shared_lock)
 		mutex_lock(ctl->shared_lock);
@@ -157,6 +161,8 @@ static void check_dsi_ctrl_status(struct work_struct *work)
 	if (ctl->shared_lock)
 		mutex_unlock(ctl->shared_lock);
 #endif	
+	mutex_unlock(&ctrl_pdata->mutex);
+
 	if ((pdsi_status->mfd->panel_power_on)) {
 		if (ret > 0) {
 			schedule_delayed_work(&pdsi_status->check_status,
