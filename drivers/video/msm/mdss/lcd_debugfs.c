@@ -15,6 +15,7 @@
 #include <asm/uaccess.h> 
 #include <linux/delay.h>
 #include <linux/unistd.h>
+#include "mdss_dsi.h"
 #include <linux/hw_lcd_common.h>
 
 /* define macro */

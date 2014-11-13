@@ -26,7 +26,7 @@
 
 /* Add head file */
 #include <linux/hw_lcd_common.h>
-#include <hw_lcd_debug.h>
+#include "hw_lcd_debug.h"
 #include <misc/app_info.h>
 
 #ifdef CONFIG_FB_DISPLAY_INVERSION

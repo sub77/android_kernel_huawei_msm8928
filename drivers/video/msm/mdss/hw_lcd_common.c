@@ -67,8 +67,8 @@
 #include<linux/init.h>
 #include<linux/module.h>
 
+#include "mdss_dsi.h"
 #include <linux/hw_lcd_common.h>
-#include <mdss_dsi.h>
 #include <linux/of.h>
 
 #define LCD_ID_0_GPIO    15

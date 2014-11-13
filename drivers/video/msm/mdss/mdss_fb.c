@@ -55,12 +55,9 @@
 
 #ifdef CONFIG_HUAWEI_KERNEL
 #include "mdss_mdp.h"
-#endif
-#include <linux/hw_lcd_common.h>
-
-#ifdef CONFIG_HUAWEI_KERNEL
 #include "mdss_dsi.h"
 #endif
+#include <linux/hw_lcd_common.h>
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
