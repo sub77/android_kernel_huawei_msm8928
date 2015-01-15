@@ -46,6 +46,7 @@
 #include <mach/rpm-regulator-smd.h>
 #include <mach/msm_smem.h>
 #include <linux/msm_thermal.h>
+#include <ram_console.h>
 #include "board-dt.h"
 #include "clock.h"
 #include "platsmp.h"
@@ -98,11 +99,42 @@ static void __init msm8226_early_memory(void)
 	of_scan_flat_dt(dt_scan_for_memory_hole, msm8226_reserve_table);
 }
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resource[] = {
+	{
+		.flags  = IORESOURCE_MEM,
+	}
+};
+#endif
+
+static void __init msm8226_allocate_memory_regions(void)
+{
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	unsigned long size;
+	size = MSM_RAM_CONSOLE_SIZE;
+	/* kludge the offset to the end of the EBI1 pool */
+	ram_console_resource[0].start =
+		(msm8226_reserve_table[MEMTYPE_EBI1].start +
+		 msm8226_reserve_table[MEMTYPE_EBI1].size) - size;
+	ram_console_resource[0].end = ram_console_resource[0].start + size - 1;
+	pr_info("allocating %lu bytes at %p for RAM console\n",
+			size, (void *)ram_console_resource[0].start);
+#endif
+}
+
+static void __init reserve_ram_console_memory(void)
+{
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	msm8226_reserve_table[MEMTYPE_EBI1].size += MSM_RAM_CONSOLE_SIZE;
+#endif
+}
+
 static void __init msm8226_reserve(void)
 {
 	reserve_info = &msm8226_reserve_info;
 	of_scan_flat_dt(dt_scan_for_memory_reserve, msm8226_reserve_table);
 	msm_reserve();
+	reserve_ram_console_memory();
 }
 
 /*
@@ -141,6 +173,9 @@ void __init msm8226_init(void)
 	msm8226_add_drivers();
 #ifdef CONFIG_HUAWEI_MMC
     hw_extern_sdcard_add_device();
+#endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	msm8226_add_ramconsole_devices();
 #endif
 }
 #ifdef CONFIG_HUAWEI_MMC
@@ -190,6 +225,20 @@ int __init hw_extern_sdcard_add_device(void)
 }
 #endif
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ram_console_resource),
+	.resource = ram_console_resource,
+};
+
+int __init msm8226_add_ramconsole_devices(void)
+{
+	platform_device_register(&ram_console_device);
+	return 0;
+}
+#endif
 
 static const char *msm8226_dt_match[] __initconst = {
 	"qcom,msm8226",
@@ -211,6 +260,7 @@ DT_MACHINE_START(MSM8226_DT, "Qualcomm MSM 8226 (Flattened Device Tree)")
 	.timer = &msm_dt_timer,
 	.dt_compat = msm8226_dt_match,
 	.reserve = msm8226_reserve,
+	.init_early = msm8226_allocate_memory_regions,
 	.init_very_early = msm8226_early_memory,
 	.restart = msm_restart,
 	.smp = &arm_smp_ops,

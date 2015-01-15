@@ -681,5 +681,9 @@ void msm_snddev_tx_route_deconfig(void);
 
 extern phys_addr_t msm_shared_ram_phys; /* defined in arch/arm/mach-msm/io.c */
 
+#if defined(CONFIG_ANDROID_RAM_CONSOLE) && defined(CONFIG_ARCH_MSM8226)
+#define MSM_RAM_CONSOLE_SIZE       128 * SZ_1K
+int __init msm8226_add_ramconsole_devices(void);
+#endif
 
 #endif
