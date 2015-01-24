@@ -201,6 +201,8 @@ static DEFINE_SPINLOCK(reg_spinlock);
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 
+#define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+
 /* message types */
 #define WCNSS_CTRL_MSG_START	0x01000000
 #define	WCNSS_VERSION_REQ             (WCNSS_CTRL_MSG_START + 0)
@@ -261,7 +263,17 @@ static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
 
+#ifdef CONFIG_HUAWEI_WIFI
+#define NVBIN_FILE "wlan/prima/WCNSS_hw_wlan_nv.bin"
+#define NVBIN_FILE_3660B "wlan/prima/WCNSS_hw_wlan_nv_3660b.bin"
+#define WLAN_CHIP_QUALCOMM_WCN3660B   "2.4"
+#define WLAN_MAX_CONF_INFO_LEN 128
+#define QUALCOMM_WCN_CALDATA_FORMAT    "../wifi/WCNSS_hw_wlan_nv"
+extern char *get_wifi_device_type(void);
+const void *get_hw_wifi_pubfile_id(void);
+#else
 #define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#endif
 
 /*
  * On SMD channel 4K of maximum data can be transferred, including message
@@ -1101,6 +1113,10 @@ wcnss_pronto_gpios_config(struct device *dev, bool enable)
 	int i, j;
 	int WCNSS_WLAN_NUM_GPIOS = 5;
 
+#ifdef CONFIG_HUAWEI_WIFI
+    pr_info("wcnss: %s enter;\n", __func__);
+#endif
+
 	for (i = 0; i < WCNSS_WLAN_NUM_GPIOS; i++) {
 		int gpio = of_get_gpio(dev->of_node, i);
 		if (enable) {
@@ -1114,6 +1130,9 @@ wcnss_pronto_gpios_config(struct device *dev, bool enable)
 			gpio_free(gpio);
 	}
 
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
 	return rc;
 
 fail:
@@ -1121,6 +1140,9 @@ fail:
 		int gpio = of_get_gpio(dev->of_node, i);
 		gpio_free(gpio);
 	}
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
 	return rc;
 }
 
@@ -1129,6 +1151,10 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 {
 	int i, j;
 	int rc = 0;
+
+#ifdef CONFIG_HUAWEI_WIFI
+    pr_info("wcnss: %s enter;\n", __func__);
+#endif
 
 	for (i = gpios_5wire->start; i <= gpios_5wire->end; i++) {
 		if (enable) {
@@ -1141,11 +1167,17 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 			gpio_free(i);
 	}
 
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
 	return rc;
 
 fail:
 	for (j = i-1; j >= gpios_5wire->start; j--)
 		gpio_free(j);
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
 	return rc;
 }
 
@@ -2003,11 +2035,38 @@ static void wcnss_nvbin_dnld(void)
 	unsigned int nv_blob_size = 0;
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
-
+#ifdef CONFIG_HUAWEI_WIFI
+	char *wifi_device_type = NULL;
+	char *wifi_pubfile_id = NULL;
+	char nvbin_path[WLAN_MAX_CONF_INFO_LEN] = {0};
+	wifi_device_type = get_wifi_device_type();
+	wifi_pubfile_id = (char *)get_hw_wifi_pubfile_id();
+#endif
 	down_read(&wcnss_pm_sem);
-
+/*wcn3660b use the diff nvbin file*/
+#ifdef CONFIG_HUAWEI_WIFI
+	snprintf(nvbin_path,sizeof(nvbin_path), "%s_%s.bin", QUALCOMM_WCN_CALDATA_FORMAT, wifi_pubfile_id);
+	ret = request_firmware(&nv, nvbin_path, dev);
+	if (ret || !nv || !nv->data || !nv->size)
+	{
+	    if(0 == strncmp(wifi_device_type, WLAN_CHIP_QUALCOMM_WCN3660B, strlen(WLAN_CHIP_QUALCOMM_WCN3660B)))
+	    {
+	        ret = request_firmware(&nv, NVBIN_FILE_3660B, dev);
+	        pr_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE_3660B);
+	    }
+	    else
+	    {
+	        ret = request_firmware(&nv, NVBIN_FILE, dev);
+	        pr_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE);
+	    }
+	}
+	else
+	{
+	    pr_err("wcnss: %s: firmware_path %s\n",__func__, nvbin_path);
+	}
+#else
 	ret = request_firmware(&nv, NVBIN_FILE, dev);
-
+#endif
 	if (ret || !nv || !nv->data || !nv->size) {
 		pr_err("wcnss: %s: request_firmware failed for %s(ret = %d)\n",
 			__func__, NVBIN_FILE, ret);
@@ -2375,7 +2434,14 @@ wcnss_trigger_config(struct platform_device *pdev)
 		} else {
 			has_48mhz_xo = pdata->has_48mhz_xo;
 		}
+/*add parameters has_48mhz_xo logs */
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s:set has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
+#endif
 	}
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s:has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
+#endif
 	penv->wcnss_hw_type = (has_pronto_hw) ? WCNSS_PRONTO_HW : WCNSS_RIVA_HW;
 	penv->wlan_config.use_48mhz_xo = has_48mhz_xo;
 	penv->wlan_config.is_pronto_v3 = is_pronto_v3;
@@ -2631,6 +2697,9 @@ fail_power:
 fail_gpio_res:
 	wcnss_disable_pc_remove_req();
 	penv = NULL;
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s exit,line:%d\n", __func__,__LINE__);
+#endif
 	return ret;
 }
 
@@ -2789,6 +2858,10 @@ static int __devinit
 wcnss_wlan_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+
+#ifdef CONFIG_HUAWEI_WIFI
+	pr_info("wcnss: %s enter;\n", __func__);
+#endif
 
 	/* verify we haven't been called more than once */
 	if (penv) {

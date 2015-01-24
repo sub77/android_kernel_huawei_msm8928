@@ -59,6 +59,14 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 
 	mdp5_data = mfd_to_mdp5_data(pstatus_data->mfd);
 	ctl = mfd_to_ctl(pstatus_data->mfd);
+#ifdef CONFIG_HUAWEI_LCD
+	/* if panel not enable esd check switch in dtsi, we do not check bta */
+	if (!ctrl_pdata->esd_check_enable) {
+		pr_info("%s: ctrl_pdata->esd_check_enable = %d, not check mipi bta!\n",
+				__func__, (int)ctrl_pdata->esd_check_enable);
+		return;
+	}
+#endif
 
 	if (!ctl) {
 		pr_err("%s: Display is off\n", __func__);
@@ -75,7 +83,14 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 	mutex_lock(&ctrl_pdata->mutex);
 	if (ctl->shared_lock)
 		mutex_lock(ctl->shared_lock);
+/* the command lcd need the ov_lock to lock "ctl->wait_pingpong()" function
+   when kick off wait_pingpong() have the lock ov_lock */
+#ifdef CONFIG_HUAWEI_LCD
+	if (pdata->panel_info.type == MIPI_CMD_PANEL)
+		mutex_lock(&mdp5_data->ov_lock);
+#else
 	mutex_lock(&mdp5_data->ov_lock);
+#endif
 
 	if (pstatus_data->mfd->shutdown_pending) {
 		mutex_unlock(&mdp5_data->ov_lock);
@@ -102,13 +117,24 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 
 	pr_debug("%s: DSI ctrl wait for ping pong done\n", __func__);
 
+/* ov_lock and share_lock just lock wait_pingpong, not lock check_status */
+#ifdef CONFIG_HUAWEI_LCD
+	if (pdata->panel_info.type == MIPI_CMD_PANEL)
+		mutex_unlock(&mdp5_data->ov_lock);
+	if (ctl->shared_lock)
+		mutex_unlock(ctl->shared_lock);
+#else
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+#endif
 	ret = ctrl_pdata->check_status(ctrl_pdata);
+/*share_lock just lock wait_pingpong, so move it to front after */
+#ifndef CONFIG_HUAWEI_LCD
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 
 	mutex_unlock(&mdp5_data->ov_lock);
 	if (ctl->shared_lock)
 		mutex_unlock(ctl->shared_lock);
+#endif
 	mutex_unlock(&ctrl_pdata->mutex);
 
 	if ((pstatus_data->mfd->panel_power_on)) {

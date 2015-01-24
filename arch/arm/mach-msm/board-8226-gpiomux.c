@@ -18,6 +18,9 @@
 #include <mach/gpio.h>
 #include <mach/gpiomux.h>
 #include <mach/socinfo.h>
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <linux/of.h>
+#endif
 
 #define WLAN_CLK	44
 #define WLAN_SET	43
@@ -111,7 +114,78 @@ static struct msm_gpiomux_config msm_eth_configs[] = {
 	},
 };
 #endif
+#ifdef CONFIG_HUAWEI_KERNEL
+static struct gpiomux_setting nfc_wake_int_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
+};
+static struct gpiomux_setting nfc_interrupt_int_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,	
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
 
+
+static struct msm_gpiomux_config msm_nfc_gpio_configs[] __initdata = {	
+	{     /*NFC_WAKE         MSM8226(GPIO_20)*/
+		.gpio      = 20,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nfc_wake_int_cfg,
+			[GPIOMUX_ACTIVE] = &nfc_wake_int_cfg,
+		},
+	},
+	{    /*NFC_INT            MSM8226(GPIO_21)*/
+		.gpio      = 21,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nfc_interrupt_int_cfg,
+			[GPIOMUX_ACTIVE] = &nfc_interrupt_int_cfg,
+		},
+	},	
+};
+#endif
+
+#ifdef CONFIG_HUAWEI_KERNEL
+/*config the nc gpio to input and pull down*/
+static struct gpiomux_setting gpio_nc_config = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+/*removed the nc gpio configrution, the configuration read from dts now*/
+#endif
+/*If no Pull-up resistor outside,This must be set as this.*/
+#ifdef CONFIG_HUAWEI_KERNEL
+static struct gpiomux_setting synaptics_int_act_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting synaptics_int_sus_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+static struct gpiomux_setting synaptics_reset_act_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+static struct gpiomux_setting synaptics_reset_sus_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
+};
+#else
 static struct gpiomux_setting synaptics_int_act_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_8MA,
@@ -123,7 +197,6 @@ static struct gpiomux_setting synaptics_int_sus_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
-
 static struct gpiomux_setting synaptics_reset_act_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_6MA,
@@ -135,7 +208,7 @@ static struct gpiomux_setting synaptics_reset_sus_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
-
+#endif
 static struct gpiomux_setting gpio_keys_active = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -147,6 +220,19 @@ static struct gpiomux_setting gpio_keys_suspend = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
+
+#ifdef CONFIG_HUAWEI_HALL_AK8789
+static struct gpiomux_setting gpio_hall_active = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+static struct gpiomux_setting gpio_hall_suspend = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+#endif
 
 static struct gpiomux_setting gpio_spi_act_config = {
 	.func = GPIOMUX_FUNC_1,
@@ -209,6 +295,38 @@ static struct msm_gpiomux_config msm_keypad_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_keys_suspend,
 		},
 	},
+/*mate2 need to support hall devices, so we use gpio 107 108 109 119 for hall interrupts*/
+/*warning: please do not delete the following config, because delete will cause the hall breakdown*/
+#ifdef CONFIG_HUAWEI_HALL_AK8789
+	{
+		.gpio = 107,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &gpio_hall_active,
+			[GPIOMUX_SUSPENDED] = &gpio_hall_suspend,
+		},
+	},
+	{
+		.gpio = 108,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &gpio_hall_active,
+			[GPIOMUX_SUSPENDED] = &gpio_hall_suspend,
+		},
+	},
+	{
+		.gpio = 109,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &gpio_hall_active,
+			[GPIOMUX_SUSPENDED] = &gpio_hall_suspend,
+		},
+	},
+	{
+		.gpio = 119,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &gpio_hall_active,
+			[GPIOMUX_SUSPENDED] = &gpio_hall_suspend,
+		},
+	},
+#else
 	{
 		.gpio = 107,
 		.settings = {
@@ -223,6 +341,7 @@ static struct msm_gpiomux_config msm_keypad_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_keys_suspend,
 		},
 	},
+#endif
 };
 
 static struct gpiomux_setting lcd_rst_act_cfg = {
@@ -559,6 +678,39 @@ static struct msm_gpiomux_config sd_card_det __initdata = {
 	},
 };
 
+#if defined(CONFIG_CHARGER_BQ2419x) || defined(CONFIG_BATTERY_BQ27510)
+static struct gpiomux_setting ti_bq_active_config = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting ti_bq_suspend_config = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_IN,
+};
+
+static struct msm_gpiomux_config ti_charger_and_battery_config[] = {
+	{
+		.gpio = 27,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &ti_bq_active_config,
+			[GPIOMUX_SUSPENDED] = &ti_bq_suspend_config,
+		},
+	},
+	{
+		.gpio = 67,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &ti_bq_active_config,
+			[GPIOMUX_SUSPENDED] = &ti_bq_suspend_config,
+		},
+	}
+};
+#endif
+
 static struct msm_gpiomux_config wcnss_5wire_interface[] = {
 	{
 		.gpio = 40,
@@ -648,6 +800,19 @@ static struct gpiomux_setting gpio_suspend_config[] = {
 		.dir = GPIOMUX_OUT_LOW,
 	},
 };
+static struct gpiomux_setting cam_settings_mclk0_gpio[] = {
+	{
+		.func = GPIOMUX_FUNC_1, /*active 1*/ /* 0 */
+		.drv = GPIOMUX_DRV_10MA,
+		.pull = GPIOMUX_PULL_NONE,
+	},
+
+	{
+		.func = GPIOMUX_FUNC_1, /*suspend*/ /* 1 */
+		.drv = GPIOMUX_DRV_10MA,
+		.pull = GPIOMUX_PULL_DOWN,
+	},
+};
 
 static struct gpiomux_setting cam_settings[] = {
 	{
@@ -679,17 +844,27 @@ static struct gpiomux_setting cam_settings[] = {
 		.drv = GPIOMUX_DRV_2MA,
 		.pull = GPIOMUX_PULL_DOWN,
 	},
+#ifdef CONFIG_HUAWEI_KERNEL
+	{
+		.func = GPIOMUX_FUNC_GPIO, /*suspend 0*/ /* 5 */
+		.drv = GPIOMUX_DRV_2MA,
+		.pull = GPIOMUX_PULL_DOWN,
+		.dir =  GPIOMUX_OUT_LOW,
+	},
+#endif
+
 };
 
-
+/* corret the code mess caused by baseline update(commit 2ff4228c) */
 static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 	{
 		.gpio = 26, /* CAM_MCLK0 */
 		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[0],
-			[GPIOMUX_SUSPENDED] = &cam_settings[1],
+                    [GPIOMUX_ACTIVE]    = &cam_settings_mclk0_gpio[0],
+                    [GPIOMUX_SUSPENDED] = &cam_settings_mclk0_gpio[1],
 		},
 	},
+#ifndef CONFIG_HUAWEI_KERNEL
 	{
 		.gpio = 27, /* CAM_MCLK1 */
 		.settings = {
@@ -698,6 +873,24 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 		},
 
 	},
+#endif
+#ifdef CONFIG_HUAWEI_KERNEL
+	{
+		.gpio = 28, /* CAM2_RST_N */
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[3],
+			[GPIOMUX_SUSPENDED] = &cam_settings[5],
+		},
+	},
+#else
+	{
+		.gpio = 28, /* CAM2_RST_N */
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[3],
+			[GPIOMUX_SUSPENDED] = &cam_settings[4],
+		},
+	},
+#endif
 	{
 		.gpio = 29, /* CCI_I2C_SDA0 */
 		.settings = {
@@ -713,12 +906,29 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 		},
 	},
 	{
+		.gpio = 35, /* CAM2_STANDBY_N */
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[3],
+			[GPIOMUX_SUSPENDED] = &cam_settings[4],
+		},
+	},	
+	{
 		.gpio = 36, /* CAM1_STANDBY_N */
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &cam_settings[3],
 			[GPIOMUX_SUSPENDED] = &cam_settings[4],
 		},
 	},
+#ifdef CONFIG_HUAWEI_KERNEL
+	{
+
+		.gpio = 37, /* CAM1_RST_N */
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[3],
+			[GPIOMUX_SUSPENDED] = &cam_settings[5],
+		},
+	},
+#else
 	{
 		.gpio = 37, /* CAM1_RST_N */
 		.settings = {
@@ -726,21 +936,7 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &cam_settings[4],
 		},
 	},
-	{
-		.gpio = 35, /* CAM2_STANDBY_N */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[3],
-			[GPIOMUX_SUSPENDED] = &cam_settings[4],
-		},
-	},
-	{
-		.gpio = 28, /* CAM2_RST_N */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[3],
-			[GPIOMUX_SUSPENDED] = &cam_settings[4],
-		},
-	},
-
+#endif
 };
 
 static struct msm_gpiomux_config msm_sensor_configs_skuf_plus[] __initdata = {
@@ -759,7 +955,6 @@ static struct msm_gpiomux_config msm_sensor_configs_skuf_plus[] __initdata = {
 		},
 	},
 };
-
 
 static struct gpiomux_setting auxpcm_act_cfg = {
 	.func = GPIOMUX_FUNC_1,
@@ -803,7 +998,7 @@ static struct msm_gpiomux_config msm_auxpcm_configs[] __initdata = {
 		},
 	},
 };
-
+#ifndef CONFIG_HUAWEI_KERNEL
 static struct gpiomux_setting usb_otg_sw_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -818,7 +1013,7 @@ static struct msm_gpiomux_config usb_otg_sw_configs[] __initdata = {
 		},
 	},
 };
-
+#endif
 #ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 static struct gpiomux_setting sdc3_clk_actv_cfg = {
 	.func = GPIOMUX_FUNC_2,
@@ -904,6 +1099,60 @@ static void msm_gpiomux_sdc3_install(void)
 static void msm_gpiomux_sdc3_install(void) {}
 #endif /* CONFIG_MMC_MSM_SDC3_SUPPORT */
 
+#ifdef CONFIG_HUAWEI_KERNEL
+static struct msm_gpiomux_config* msm_nc_gpio_configs = NULL;
+/*read the nc gpio from dtsi and configure it*/
+static int msm_cfg_nc_gpio(void)
+{
+	struct device_node *of_gpio_node;
+	int ngpio = 0;
+	int rc = 0;
+	unsigned* record = NULL;
+	int i;
+
+	of_gpio_node = of_find_compatible_node(NULL, NULL, "qcom,sleep_gpio");
+	if (!of_gpio_node) {
+		pr_err("%s: Failed to find qcom,sleep_gpio node\n", __func__);
+		return -ENODEV;
+	}
+	
+	rc = of_property_read_u32(of_gpio_node, "ngpio", &ngpio);
+	if (rc) {
+		pr_err("%s: Failed to find ngpio property in msm-gpio ngpio node %d\n"
+				, __func__, rc);
+		return rc;
+	}
+
+	record = kmalloc(sizeof(int) * ngpio , GFP_KERNEL);
+	if (!record)
+	{
+		return -ENOMEM;
+	}
+	memset(record,0,sizeof(int) * ngpio);
+	of_property_read_u32_array(of_gpio_node,"gpio",record,ngpio); 
+
+	msm_nc_gpio_configs = kmalloc(sizeof(struct msm_gpiomux_config) * ngpio , GFP_KERNEL);
+	if (!msm_nc_gpio_configs)
+	{
+		kfree(record);
+		record = NULL;
+		return -ENOMEM;
+	}
+	memset(msm_nc_gpio_configs,0,sizeof(struct msm_gpiomux_config) * ngpio);
+	for(i=0;i<ngpio;i++)
+	{
+		msm_nc_gpio_configs[i].gpio = record[i];
+		msm_nc_gpio_configs[i].settings[GPIOMUX_ACTIVE] = &gpio_nc_config;
+		msm_nc_gpio_configs[i].settings[GPIOMUX_SUSPENDED] = &gpio_nc_config;
+	}
+	msm_gpiomux_install(msm_nc_gpio_configs,ngpio);
+
+	kfree(record);
+    record = NULL;
+	return rc;
+}
+#endif
+
 void __init msm8226_init_gpiomux(void)
 {
 	int rc;
@@ -935,6 +1184,11 @@ void __init msm8226_init_gpiomux(void)
 				ARRAY_SIZE(wcnss_5wire_interface));
 
 	msm_gpiomux_install(&sd_card_det, 1);
+
+#if defined(CONFIG_CHARGER_BQ2419x) || defined(CONFIG_BATTERY_BQ27510)
+	msm_gpiomux_install(ti_charger_and_battery_config, ARRAY_SIZE(ti_charger_and_battery_config));
+#endif
+
 	if (of_board_is_skuf())
 		msm_gpiomux_install(msm_skuf_goodix_configs,
 				ARRAY_SIZE(msm_skuf_goodix_configs));
@@ -958,9 +1212,11 @@ void __init msm8226_init_gpiomux(void)
 	msm_gpiomux_install(msm_auxpcm_configs,
 			ARRAY_SIZE(msm_auxpcm_configs));
 
+#ifndef CONFIG_HUAWEI_KERNEL
 	if (of_board_is_cdp() || of_board_is_mtp() || of_board_is_xpm())
 		msm_gpiomux_install(usb_otg_sw_configs,
 					ARRAY_SIZE(usb_otg_sw_configs));
+#endif
 
 	msm_gpiomux_sdc3_install();
 
@@ -979,6 +1235,12 @@ void __init msm8226_init_gpiomux(void)
 	if (machine_is_msm8926() && of_board_is_mtp())
 		msm_gpiomux_install(smsc_hub_configs,
 			ARRAY_SIZE(smsc_hub_configs));
+
+#ifdef CONFIG_HUAWEI_KERNEL
+	msm_gpiomux_install(msm_nfc_gpio_configs, ARRAY_SIZE(msm_nfc_gpio_configs));
+	/*use dynamic configuration gpio function instead of old one */
+	msm_cfg_nc_gpio();
+#endif
 }
 
 static void wcnss_switch_to_gpio(void)

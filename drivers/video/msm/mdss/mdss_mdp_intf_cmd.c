@@ -47,12 +47,6 @@ struct mdss_mdp_cmd_ctx {
 	struct work_struct pp_done_work;
 	atomic_t pp_done_cnt;
 
-	/* te config */
-	u8 tear_check;
-	u16 height;	/* panel height */
-	u16 vporch;	/* vertical porches */
-	u16 start_threshold;
-	u32 vclk_line;	/* vsync clock per line */
 	struct mdss_panel_recovery recovery;
 	bool ulps;
 	struct mdss_mdp_cmd_ctx *sync_ctx; /* for partial update */
@@ -299,7 +293,10 @@ static void mdss_mdp_cmd_readptr_done(void *arg)
 		mdss_mdp_irq_disable_nosync
 			(MDSS_MDP_IRQ_PING_PONG_RD_PTR, ctx->pp_num);
 		complete(&ctx->stop_comp);
-		schedule_work(&ctx->clk_work);
+	/*delete clk off opreation to avoid esd check freezed*/
+	#ifndef CONFIG_HUAWEI_LCD
+	schedule_work(&ctx->clk_work);
+	#endif
 	}
 
 	spin_unlock(&ctx->clk_lock);
@@ -503,14 +500,19 @@ int mdss_mdp_cmd_reconfigure_splash_done(struct mdss_mdp_ctl *ctl, bool handoff)
 
 	return ret;
 }
-
+#ifdef CONFIG_HUAWEI_LCD
+extern struct dsi_status_data *pstatus_data;
+#endif
 static int mdss_mdp_cmd_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 {
 	struct mdss_mdp_cmd_ctx *ctx;
 	struct mdss_panel_data *pdata;
 	unsigned long flags;
 	int rc = 0;
-
+#ifdef CONFIG_HUAWEI_LCD
+	char *envp[2] = {"PANEL_ALIVE=0", NULL};
+	struct mdss_panel_data *pdata = NULL;
+#endif
 	ctx = (struct mdss_mdp_cmd_ctx *) ctl->priv_data;
 	if (!ctx) {
 		pr_err("invalid ctx\n");
@@ -564,6 +566,20 @@ static int mdss_mdp_cmd_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 		ctx->pp_timeout_report_cnt++;
 		rc = -EPERM;
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_TIMEOUT);
+#ifdef CONFIG_HUAWEI_LCD
+		if (pstatus_data) {
+			if(pstatus_data->mfd)
+				pdata = dev_get_platdata(&pstatus_data->mfd->pdev->dev);
+		}
+		/* send panel alive=0 uevent, when occur timeout */
+		if (pdata) {
+			pdata->panel_info.panel_dead = true;
+			kobject_uevent_env(&pstatus_data->mfd->fbi->dev->kobj,
+					KOBJ_CHANGE, envp);
+			pr_err("%s: Panel has gone bad, sending uevent - %s\n",
+							__func__, envp[0]);
+		}
+#endif
 		atomic_add_unless(&ctx->koff_cnt, -1, 0);
 	} else {
 		rc = 0;
@@ -657,6 +673,10 @@ int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 		mdss_mdp_ctl_intf_event(ctl,
 				MDSS_EVENT_REGISTER_RECOVERY_HANDLER,
 				(void *)&ctx->recovery);
+/* schedule the esd delay work */
+#ifdef CONFIG_HUAWEI_LCD
+		mdss_dsi_status_check_ctl(ctl->mfd,true);
+#endif
 	}
 
 	MDSS_XLOG(ctl->num, ctl->roi.x, ctl->roi.y, ctl->roi.w,
@@ -705,7 +725,10 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 		pr_err("invalid ctx\n");
 		return -ENODEV;
 	}
-
+/* cancel the esd delay work */
+#ifdef CONFIG_HUAWEI_LCD
+	mdss_dsi_status_check_ctl(ctl->mfd,false);
+#endif
 	list_for_each_entry_safe(handle, tmp, &ctx->vsync_handlers, list)
 		mdss_mdp_cmd_remove_vsync_handler(ctl, handle);
 	MDSS_XLOG(ctl->num, ctx->koff_cnt, ctx->clk_enabled,
@@ -734,6 +757,15 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl)
 					(MDSS_MDP_IRQ_PING_PONG_RD_PTR,
 							ctx->pp_num);
 				ctx->rdptr_enabled = 0;
+#ifdef CONFIG_HUAWEI_LCD
+				if (pinfo->panel_dead) {
+					mdss_mdp_irq_disable(MDSS_MDP_IRQ_PING_PONG_RD_PTR,
+							ctx->pp_num);
+					/* add the qcom patch to solve the cmd lcd esd issue */
+					schedule_work(&ctx->clk_work);
+					ctx->rdptr_enabled = 0;
+				}
+#endif
 			}
 		}
 

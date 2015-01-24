@@ -74,7 +74,8 @@
 			<1050000 1050000 1140000>,
 			<1050000 1050000 1140000>;
 		qcom,cpr-voltage-ceiling = <1050000 1150000 1280000>;
-		qcom,cpr-voltage-floor = <1050000 1050000 1100000>;
+		/* increase CPU turbo voltage from 1.1v to 1.14v */
+		qcom,cpr-voltage-floor = <1050000 1050000 1140000>;
 		vdd-apc-supply = <&pm8226_s2>;
 
 		vdd-mx-supply = <&pm8226_l3_ao>;
@@ -247,7 +248,7 @@
 		status = "okay";
 		pm8226_l5: regulator-l5 {
 			regulator-name = "8226_l5";
-			regulator-min-microvolt = <1200000>;
+			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1200000>;
 			qcom,init-voltage = <1200000>;
 			status = "okay";
@@ -354,8 +355,8 @@
 		status = "okay";
 		pm8226_l15: regulator-l15 {
 			regulator-name = "8226_l15";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <2900000>;
 			qcom,init-voltage = <2800000>;
 			status = "okay";
 		};
@@ -392,7 +393,6 @@
 			status = "okay";
 		};
 	};
-
 	rpm-regulator-ldoa19 {
 		status = "okay";
 		pm8226_l19: regulator-l19 {
@@ -400,10 +400,11 @@
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
 			qcom,init-voltage = <2850000>;
+			regulator-boot-on;
+			regulator-always-on;
 			status = "okay";
 		};
 	};
-
 	rpm-regulator-ldoa20 {
 		status = "okay";
 		pm8226_l20: regulator-l20 {

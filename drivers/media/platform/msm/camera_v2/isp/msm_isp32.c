@@ -385,31 +385,42 @@ static void msm_vfe32_reg_update(
 {
 	msm_camera_io_w_mb(0xF, vfe_dev->vfe_base + 0x260);
 }
-
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 static uint32_t msm_vfe32_reset_values[ISP_RST_MAX] =
 {
 	0x3FF, /* ISP_RST_HARD reset everything */
 	0x3EF /* ISP_RST_SOFT same as HARD RESET */
 };
-
+#endif
 static long msm_vfe32_reset_hardware(struct vfe_device *vfe_dev ,
 	enum msm_isp_reset_type reset_type, uint32_t blocking)
 {
-
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 	uint32_t rst_val;
+#endif
 	long rc = 0;
 	if (reset_type >= ISP_RST_MAX) {
 		pr_err("%s: Error Invalid parameter\n", __func__);
 		reset_type = ISP_RST_HARD;
 	}
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 	rst_val = msm_vfe32_reset_values[reset_type];
+#endif
 	if (blocking) {
 		init_completion(&vfe_dev->reset_complete);
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+		msm_camera_io_w_mb(0x1FF, vfe_dev->vfe_base + 0xC);
+#else
 		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0x4);
+#endif
 		rc = wait_for_completion_timeout(
 		   &vfe_dev->reset_complete, msecs_to_jiffies(50));
 	} else {
-		msm_camera_io_w_mb(0x3EF, vfe_dev->vfe_base + 0x4);
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+		msm_camera_io_w_mb(0x1EF, vfe_dev->vfe_base + 0xC);
+#else
+		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0x4);
+#endif
 	}
 	return rc;
 }
@@ -672,8 +683,11 @@ static void msm_vfe32_update_camif_state(
 		msm_camera_io_w_mb(0x0, vfe_dev->vfe_base + 0x1E0);
 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
 	} else if (update_state == DISABLE_CAMIF_IMMEDIATELY) {
-		msm_camera_io_w_mb(0x6, vfe_dev->vfe_base + 0x1E0);
-		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
+           msm_camera_io_w_mb(0x6, vfe_dev->vfe_base + 0x1E0);
+		vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev,1);
+		vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev,0,1);
+		vfe_dev->hw_info->vfe_ops.core_ops.init_hw_reg(vfe_dev);
+ 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
 	}
 }
 

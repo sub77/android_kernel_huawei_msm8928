@@ -81,6 +81,10 @@
 #define VFE40_BUS_BDG_QOS_CFG_6     0x000002DC
 #define VFE40_BUS_BDG_QOS_CFG_7     0x000002E0
 
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+#define HW_MAX_SOF_LOG_NUM 5
+static int log_print_num = 0;
+#endif
 #define VFE40_CLK_IDX 1
 static struct msm_cam_clk_info msm_vfe40_clk_info[] = {
 	{"camss_top_ahb_clk", -1},
@@ -382,7 +386,14 @@ static void msm_vfe40_process_camif_irq(struct vfe_device *vfe_dev,
 		return;
 
 	if (irq_status0 & (1 << 0)) {
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+		if (log_print_num > 0) {
+			log_print_num--;
+			pr_info("%s: SOF IRQ %d\n", __func__, log_print_num);
+		}
+#else
 		ISP_DBG("%s: SOF IRQ\n", __func__);
+#endif
 		cnt = vfe_dev->axi_data.src_info[VFE_PIX_0].raw_stream_count;
 		if (cnt > 0) {
 			msm_isp_sof_notify(vfe_dev, VFE_RAW_0, ts);
@@ -618,31 +629,45 @@ static void msm_vfe40_reg_update(struct vfe_device *vfe_dev)
 	msm_camera_io_w_mb(0xF, vfe_dev->vfe_base + 0x378);
 }
 
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 static uint32_t msm_vfe40_reset_values[ISP_RST_MAX] =
 {
 	0x1FF, /* ISP_RST_HARD reset everything */
 	0x1EF /* ISP_RST_SOFT all modules without registers */
 };
-
+#endif
 
 static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev ,
 	enum msm_isp_reset_type reset_type, uint32_t blocking)
 {
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 	uint32_t rst_val;
+#endif
 	long rc = 0;
 	if (reset_type >= ISP_RST_MAX) {
 		pr_err("%s: Error Invalid parameter\n", __func__);
 		reset_type = ISP_RST_HARD;
 	}
+#ifndef CONFIG_HUAWEI_KERNEL_CAMERA
 	rst_val = msm_vfe40_reset_values[reset_type];
+#endif
 	init_completion(&vfe_dev->reset_complete);
 	if (blocking) {
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+		msm_camera_io_w_mb(0x1FF, vfe_dev->vfe_base + 0xC);
+#else
 		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0xC);
+#endif
 		rc = wait_for_completion_timeout(
 			&vfe_dev->reset_complete, msecs_to_jiffies(50));
 	} else {
 		msm_camera_io_w_mb(0x1EF, vfe_dev->vfe_base + 0xC);
 	}
+#ifdef CONFIG_HUAWEI_KERNEL_CAMERA
+	/* we print 5 times when camera stream on */
+	pr_info("%s: \n", __func__);
+	log_print_num = HW_MAX_SOF_LOG_NUM;
+#endif
 	return rc;
 }
 
@@ -1113,7 +1138,7 @@ static void msm_vfe40_axi_clear_wm_xbar_reg(
 		vfe_dev->vfe_base + VFE40_XBAR_BASE(wm));
 }
 
-#define MSM_ISP40_TOTAL_WM_UB 819
+#define MSM_ISP40_TOTAL_WM_UB 1140
 
 static void msm_vfe40_cfg_axi_ub_equal_default(
 	struct vfe_device *vfe_dev)
@@ -1148,6 +1173,8 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 			wm_ub_size = axi_data->hw_info->min_wm_ub + delta;
 			msm_camera_io_w(ub_offset << 16 | (wm_ub_size - 1),
 				vfe_dev->vfe_base + VFE40_WM_BASE(i) + 0x10);
+			pr_err("+++ i=%d ub_offset=%d, wm_ub_size=%d\n", i, ub_offset,
+					wm_ub_size);
 			ub_offset += wm_ub_size;
 		} else
 			msm_camera_io_w(0,

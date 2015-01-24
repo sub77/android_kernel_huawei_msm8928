@@ -2266,6 +2266,11 @@ struct afe_port_cmdrsp_get_param_v2 {
 #define VPM_TX_QMIC_FLUENCE_COPP_TOPOLOGY		0x00010F75
 #define VPM_TX_DM_RFECNS_COPP_TOPOLOGY			0x00010F86
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#define VPM_TX_SM_LVVEFQ    (0x1000BFF0)  // 268484592
+#define VPM_TX_DM_LVVEFQ    (0x1000BFF1)  // 268484593
+#endif
+
 /* Memory map regions command payload used by the
  * #ASM_CMD_SHARED_MEM_MAP_REGIONS ,#ADM_CMD_SHARED_MEM_MAP_REGIONS
  * commands.

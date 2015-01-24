@@ -92,6 +92,9 @@ struct tzbsp_video_set_state_req {
 
 static int venus_hfi_power_enable(void *dev);
 
+static unsigned long venus_hfi_get_clock_rate(struct venus_core_clock *clock,
+		int num_mbs_per_sec);
+
 static inline int venus_hfi_clk_gating_off(struct venus_hfi_device *device);
 
 static int venus_hfi_power_enable(void *dev);
@@ -1931,11 +1934,16 @@ static int venus_hfi_sys_set_idle_message(struct venus_hfi_device *device,
 	int enable)
 {
 	u8 packet[VIDC_IFACEQ_VAR_SMALL_PKT_SIZE];
+	u32 hw_version;
 	struct hfi_cmd_sys_set_property_packet *pkt =
 		(struct hfi_cmd_sys_set_property_packet *) &packet;
-	create_pkt_cmd_sys_idle_indicator(pkt, enable);
-	if (venus_hfi_iface_cmdq_write(device, pkt))
-		return -ENOTEMPTY;
+	hw_version = venus_hfi_read_register(device, VIDC_WRAPPER_HW_VERSION);
+	dprintk(VIDC_DBG, "Venus HW version: 0x%x\n", hw_version);
+	if ((hw_version & 0xFFFF0000) != 0x10030000) {
+		create_pkt_cmd_sys_idle_indicator(pkt, enable);
+		if (venus_hfi_iface_cmdq_write(device, pkt))
+			return -ENOTEMPTY;
+	}
 	return 0;
 }
 

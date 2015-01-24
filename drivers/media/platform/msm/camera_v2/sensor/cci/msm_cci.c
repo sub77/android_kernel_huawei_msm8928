@@ -29,8 +29,7 @@
 #define CYCLES_PER_MICRO_SEC 4915
 #define CCI_MAX_DELAY 10000
 
-#define CCI_TIMEOUT msecs_to_jiffies(100)
-
+#define CCI_TIMEOUT msecs_to_jiffies(900)
 /* TODO move this somewhere else */
 #define MSM_CCI_DRV_NAME "msm_cci"
 
@@ -660,6 +659,8 @@ static struct msm_cam_clk_info cci_clk_info[] = {
 	{"cci_clk", -1},
 };
 
+//remove msm_cci_reset
+
 static int32_t msm_cci_init(struct v4l2_subdev *sd,
 	struct msm_camera_cci_ctrl *c_ctrl)
 {
@@ -808,6 +809,7 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 		break;
 	case MSM_CCI_GPIO_WRITE:
 		break;
+//remove msm_cci_reset
 	default:
 		rc = -ENOIOCTLCMD;
 	}

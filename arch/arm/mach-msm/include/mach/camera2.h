@@ -76,6 +76,7 @@ struct msm_camera_power_ctrl_t {
 	uint16_t clk_info_size;
 };
 
+/*add product name field*/
 struct msm_camera_sensor_board_info {
 	const char *sensor_name;
 	const char *eeprom_name;
@@ -85,9 +86,11 @@ struct msm_camera_sensor_board_info {
 	struct msm_camera_sensor_strobe_flash_data *strobe_flash_data;
 	struct msm_actuator_info *actuator_info;
 	struct msm_sensor_info_t *sensor_info;
+	struct msm_sensor_init_params *sensor_init_params;
 	const char *misc_regulator;
 	struct msm_camera_power_ctrl_t power_info;
 	struct msm_camera_sensor_slave_info *cam_slave_info;
+	const char * product_name;
 };
 
 enum msm_camera_i2c_cmd_type {

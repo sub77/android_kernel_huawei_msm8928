@@ -2637,8 +2637,18 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg)
 	ATRACE_END("frame_ready");
 
 	ATRACE_BEGIN("wait_pingpong");
+#ifdef CONFIG_HUAWEI_LCD
+	if (ctl->wait_pingpong) {
+		ret = ctl->wait_pingpong(ctl, NULL);
+		if (ret) {
+			pr_err("error wait_pingpong\n");
+			goto done;
+		}
+	}
+#else
 	if (ctl->wait_pingpong)
 		ctl->wait_pingpong(ctl, NULL);
+#endif
 	ATRACE_END("wait_pingpong");
 
 	ctl->roi_bkup.w = ctl->roi.w;

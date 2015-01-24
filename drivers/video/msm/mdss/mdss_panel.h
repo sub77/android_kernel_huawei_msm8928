@@ -16,6 +16,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/msm_mdp.h>
 
 /* panel id type */
 struct panel_id {
@@ -23,6 +24,9 @@ struct panel_id {
 	u16 type;
 };
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#define LOW_FRAME_RATE	30
+#endif
 #define DEFAULT_FRAME_RATE	60
 #define MDSS_DSI_RST_SEQ_LEN	10
 
@@ -185,6 +189,9 @@ struct mdss_dsi_phy_ctrl {
 	char bistctrl[6];
 	uint32_t pll[21];
 	char lanecfg[45];
+#ifdef CONFIG_HUAWEI_KERNEL
+	uint32_t timing_30_fps[12];
+#endif
 };
 
 struct mipi_panel_info {
@@ -307,6 +314,9 @@ struct mdss_panel_info {
 	u32 brightness_max;
 	u32 bl_max;
 	u32 bl_min;
+#ifdef CONFIG_HUAWEI_LCD
+	u32 delaytime_before_bl;
+#endif
 	u32 fb_num;
 	u32 clk_rate;
 	u32 clk_min;
@@ -345,6 +355,9 @@ struct mdss_panel_info {
 	struct ion_handle *splash_ihdl;
 	u32 panel_power_on;
 
+#ifdef CONFIG_HUAWEI_LCD
+	u32 inversion_mode;
+#endif
 	uint32_t panel_dead;
 	bool dynamic_switch_pending;
 	bool is_lpm_mode;
@@ -356,6 +369,10 @@ struct mdss_panel_info {
 	struct mipi_panel_info mipi;
 	struct lvds_panel_info lvds;
 	struct edp_panel_info edp;
+
+#ifdef CONFIG_HUAWEI_KERNEL
+	bool huawei_dynamic_fps;
+#endif
 };
 
 struct mdss_panel_data {
@@ -378,8 +395,18 @@ struct mdss_panel_data {
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
 
 	struct mdss_panel_data *next;
+	//remove dynamic gamma
+#ifdef CONFIG_FB_AUTO_CABC
+	int (*config_cabc) (struct mdss_panel_data *pdata,struct msmfb_cabc_config cabc_cfg);
+#endif
+#ifdef CONFIG_FB_DISPLAY_INVERSION
+	int (*lcd_set_display_inversion)(struct mdss_panel_data *pdata,unsigned int inversion_mode);
+#endif
+#ifdef CONFIG_HUAWEI_LCD
+	int (*set_inversion_mode)(struct mdss_panel_data *pdata,u32 imode);
+	int (*check_panel_status)(struct mdss_panel_data *pdata);
+#endif
 };
-
 /**
  * mdss_get_panel_framerate() - get panel frame rate based on panel information
  * @panel_info:	Pointer to panel info containing all panel information
@@ -395,6 +422,12 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
 	case MIPI_VIDEO_PANEL:
 	case MIPI_CMD_PANEL:
 		frame_rate = panel_info->mipi.frame_rate;
+#ifdef CONFIG_HUAWEI_KERNEL
+		if(panel_info->huawei_dynamic_fps)
+		{
+	        frame_rate = DEFAULT_FRAME_RATE;
+		}
+#endif
 		break;
 	case EDP_PANEL:
 		frame_rate = panel_info->edp.frame_rate;
